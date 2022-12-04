@@ -5,6 +5,7 @@
 # main canvas imports
 import random
 import pygame
+from pygame import *
 from glob import glob
 
 from derek_menu import menu
@@ -19,10 +20,9 @@ from andrew_background import create_background
 from CNN import AI_Judges
 from image_compare import compare_images
 
+# for text color and or frame
 BLACK = [0, 0, 0]
 WHITE = [255, 255, 255]
-RED = [255, 0, 0]
-GRAY = [120, 120, 120]
 
 
 # IMPORTANT
@@ -74,7 +74,7 @@ class canvas():
             self.coord = self.get_canvas_coord.find_coord(
                 pygame.mouse.get_pos())  # cursor coord -> canvas coord, make sure to copy it
             keys = pygame.key.get_pressed()
-            if self.coord != None and is_draw:
+            if self.coord is not None and is_draw:
                 if event.type == pygame.MOUSEBUTTONDOWN and keys[
                     pygame.K_LSHIFT]:  # fill the entire canvas with color by pressing shift mouse click
                     if pygame.mouse.get_pressed()[0] and self.saturate != 0:  # if we are desaturating/saturating
@@ -105,7 +105,8 @@ class canvas():
                     self.pixels.put_color(self.coord, [255, 255, 255])
 
                 if event.type == pygame.KEYDOWN:
-                    # saturation,s for more lighting, d for darker pixel, if any 0 <= color channel <= 255 then can't be changed
+                    # saturation,s for more lighting, d for darker pixel, if any 0 <= color channel <= 255 then can't
+                    # be changed
                     if keys[pygame.K_s]:
                         self.saturate = 1
                     elif keys[pygame.K_d]:
@@ -168,9 +169,9 @@ class canvas():
                         self.pixels.flip(2)
                     elif keys[pygame.K_RIGHT]:
                         self.pixels.flip(1)
-            if keys[pygame.K_t] and keys[pygame.K_LCTRL]:
-                # BEST FEATURE I HAVE ADDED
-                self.pixels.transpose()
+                    elif keys[pygame.K_t] and keys[pygame.K_LCTRL]:
+                        # BEST FEATURE I HAVE ADDED
+                        self.pixels.transpose()
 
         starting_x, starting_y = self.starting_coord
         screen.blit(self.canvas_frame, (starting_x - 25, starting_y - 25))
@@ -211,6 +212,26 @@ map_judges = {  # level: judge
 
 pygame.init()  # has to be before class as setting self.font requires it
 # always the same can be reused for every level
+
+# load music, may or not be copy righted, not for commercial use
+pygame.mixer.init()
+
+music_file_list = glob("music/*.mp3")
+print(music_file_list)
+
+
+def load_music():
+    choice = random.choice(music_file_list)
+    pygame.mixer.music.load(choice)
+    mixer.music.set_volume(.3)
+
+
+def unload_music():
+    pygame.mixer.music.unload()
+
+
+load_music()
+pygame.mixer.music.play()
 
 screen = pygame.display.set_mode((1920, 1080), flags=pygame.DOUBLEBUF | pygame.HWSURFACE, vsync=True)
 pygame.display.set_caption('Christmas Chadward')
@@ -295,7 +316,7 @@ for i, character in enumerate(character_list):
 
 
 def draw_character(level, input_coord):
-    screen.blit((characters[level - 1]), (input_coord))
+    screen.blit((characters[level - 1]), input_coord)
 
 
 snow = gen_snow()
@@ -307,27 +328,36 @@ game = [5, 0]  # health/points
 # win if points reach 5
 game_images = []  # use this to check for duplicates
 
-running = True
 is_show_palette = 1  # 0 is False 1 is True 2 is unable to change state from False unless resetting the canvas
 is_move_canvas = False
 is_draw = True
 
-has_eval = 0  # 0 = False, 1 = True, if the NN has evaluated the thing
-is_pass = 0  # 0 = False, 1 = True, 2 = unchangable unless reset
+has_pressed_enter = 0  # False, 1 True 2 = pressed 2 times
+
+has_eval = False  # 0 = False, 1 = True, if the NN has evaluated the image
+is_pass = [None, False]  # pass or fail, has checked for similarity
 
 is_dialogue, has_chosen_dialogue = False, False
+
+running = True
 while running:
+
+    # play music if there is no music
+    if not pygame.mixer.music.get_busy():
+        unload_music()
+        load_music()
+        pygame.mixer.music.play()
+
     pygame_event = pygame.event.get()
 
-    if game_state[1] == True:
+    if game_state[1]:
         menu_surf, chosen_level = screen_menu.draw_menu(pygame_event)
-        if chosen_level != None:
+        if chosen_level is not None:
             game_state = [chosen_level, False]  # chosen a level, thus no longer in menu
 
         screen.blit(menu_surf, (0, 0))
         # draw and get returned value and set is menu false
     else:
-
         # draw background
         screen.blit(background, (0, 0))
         screen.blit(gift_chair, (1200, 322))
@@ -343,19 +373,29 @@ while running:
 
         # after drawing then do logic
         keys = pygame.key.get_pressed()
+        starting_x, starting_y = starting_coord.copy()
         for event in pygame_event:
             if event.type == pygame.KEYDOWN:
-                if keys[pygame.K_RETURN] and is_show_palette != 2:
+                if keys[pygame.K_RETURN] and not is_move_canvas:
+                    has_pressed_enter = 1
+                if keys[pygame.K_RETURN] and starting_x >= 700:
+                    has_pressed_enter = 2
+
+                if has_pressed_enter == 1 and is_show_palette != 2:
                     is_show_palette = 2  # stop showing palette
                     is_move_canvas = True  # now able to move the canvas
                     is_draw = False
                     # run tensorflow here
-                elif keys[pygame.K_RETURN] and is_show_palette == 2:
+                elif has_pressed_enter == 2 and is_show_palette == 2:
+                    has_pressed_enter = 0
                     # check if we should reset the menu
                     if game[1] >= 5:
                         game = [5, 0]  # reset the health and points
                         game_state[1] = True
                         screen_menu.update_level()  # update the level
+                    elif game[0] == 0:
+                        game = [5, 0]  # reset the health and points
+                        game_state[1] = True
 
                     # reset everything, absolutly everything
                     is_show_palette = 1
@@ -364,66 +404,69 @@ while running:
                     screen_canvas.reset_canvas()
                     has_chosen_dialogue = False
                     is_dialogue = False
-                    is_pass = 0
+                    is_pass = [None, False]  # reset to no pass/fail, and has not checked for similarity
 
                     # update conveyor speed
                     conveyors = update_conveyors(game_state[0])
 
                     # update the evaluation state
-                    has_eval = 0
+                    has_eval = False
 
                 if keys[pygame.K_SPACE] and is_show_palette != 2:
                     if is_show_palette == 1:
                         is_show_palette = 0
                     else:
                         is_show_palette = 1
-
-        starting_x, starting_y = starting_coord
+        starting_x, starting_y = starting_coord.copy()  # update it incase starting_coord was reset to [300, 355]
         if (starting_x < 700) and is_move_canvas:  # if it has not reached the end then continue moving it
             move_canvas()
         elif starting_x >= 700:
             is_move_canvas = False
             is_dialogue = True
 
-        if (starting_x >= 700) and not is_move_canvas and has_eval == 0:
+        if (starting_x >= 700) and not is_move_canvas and not has_eval:
             is_similar = compare_images(screen_canvas.pixels.canvas, game_images)
             game_images.append(screen_canvas.pixels.canvas.copy())
-            if is_similar:  # if they are similar subtract health
-                game[0] -= 1
-                is_pass = False
-            else:  # else if they are not similar evaluate them with the CNN
+
+            # is_pass = [None, False] # is the image as pass or fail, has checked for similarity
+            if is_similar and not is_pass[1]:  # if they are similar subtract health
+                is_pass = [False, True]
+            elif not has_eval:  # else if they are not similar evaluate them with the CNN
                 eval = round(abs(CNN_judges.judge(map_judges[game_state[0]], screen_canvas.pixels.canvas)),
                              2)  # round, remove negative numbers
                 # abs is good enough as the negatives are very close to 0
                 print(eval)
-                if eval < 0.1:  # if fail you lose 1 health
-                    game[0] -= 1
-                    is_pass = False
+                if eval < 0.75:  # if fail you lose 1 health, 0.75 is the passing grade
+                    is_pass[0] = False
                 # if the 0.6 < eval <= 0.7, if a decent rating then no health is subtracted
-                elif 0.1 < eval <= 1:  # CNN will never go past 1.1 but in case it does that means the human tricked the AI
+                elif 0.75 < eval <= 1:  # CNN will never go past 1.1 but in case it does that means the human tricked
+                    # the AI
                     game[1] += 1
-                    is_pass = True
+                    is_pass[0] = True
                 elif eval > 1.1:  # good luck even trying, the AI isn't trained to give higher than 1 eval
                     game[1] += 1  # add a point
 
                     if game[0] < 5:  # capped at 5 health
                         game[0] += 1  # extra life
-                    is_pass = True
-            has_eval = 1
+                    is_pass[0] = True
 
+                if not is_pass[0]:
+                    game[0] -= 1
+
+                has_eval = True
         if is_dialogue:
             # draw dialogue
-            if is_pass == True:
+            if is_pass[0]:
                 if has_chosen_dialogue is False:
                     positive_text = random.choice(positive_dialogue)
                     has_chosen_dialogue = True
                 screen.blit(positive_text, (1050, 300))
-            elif is_pass == False:
+            elif not is_pass[0]:
                 if not has_chosen_dialogue:
                     negative_text = random.choice(negative_dialogue)
                     has_chosen_dialogue = True
                 screen.blit(negative_text, (1050, 300))
-            print(game)
+
         draw_health((730, 100), game[0])
         draw_points((1350, 110), game[1])
         screen.blit(snow.draw_snow(), (0, 0))
