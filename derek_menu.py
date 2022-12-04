@@ -16,32 +16,32 @@ class menu():
             self.level_text.append(pygame.image.load(file).convert_alpha())
 
         self.starting_coord = [420, 850]
-        self.level = 3  # if level > 4, give free play
+        self.level = 1  # starts at 1, do not change unless for testing, if level > 4, = free play mode
 
         x, y = self.starting_coord
         # list comprehension explained and created by brian
         self.button_coord = [[[x + i * 300, y], [x + 200 + i * 300, y + 100]] for i in range(4)]
 
     def update_level(self):
-        if self.level >= 4:  # cap the max level to 4, if player achieves that then it means they had full playability
+        if self.level < 1:  # cap the max level to 4, if player achieves that then it means they had full playability
             self.level += 1
 
-    def check_button(self, pygame_event):
-        for event in pygame_event.copy():
-            if event.type == pygame.MOUSEBUTTONUP:
+    def check_button(self):
+        # for event in pygame_event.copy():
+        if pygame.mouse.get_pressed()[0]:
 
-                mouse_x, mouse_y = pygame.mouse.get_pos()
+            mouse_x, mouse_y = pygame.mouse.get_pos()
 
-                for button, coord in enumerate(self.button_coord):
-                    starting_coord, ending_coord = coord
-                    start_x, start_y = starting_coord
-                    end_x, end_y = ending_coord
+            for button, coord in enumerate(self.button_coord):
+                starting_coord, ending_coord = coord
+                start_x, start_y = starting_coord
+                end_x, end_y = ending_coord
 
-                    if (start_x <= mouse_x <= end_x) and (start_y <= mouse_y <= end_y):
-                        # print(True)
-                        # print(starting_coord,ending_coord)
-                        # print(button)
-                        return button + 1
+                if (start_x <= mouse_x <= end_x) and (start_y <= mouse_y <= end_y):
+                    # print(True)
+                    # print(starting_coord,ending_coord)
+                    # print(button)
+                    return button + 1
         return None
 
     def draw_menu(self, pygame_event):
