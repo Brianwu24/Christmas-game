@@ -5,6 +5,7 @@
 # main canvas imports
 import random
 import pygame
+import numpy as np
 from pygame import *
 from glob import glob
 
@@ -217,7 +218,7 @@ pygame.init()  # has to be before class as setting self.font requires it
 pygame.mixer.init()
 
 music_file_list = glob("music/*.mp3")
-print(music_file_list)
+
 
 
 def load_music():
@@ -322,7 +323,7 @@ def draw_character(level, input_coord):
 snow = gen_snow()
 
 # keep track of game states, and other variables
-game_state = [1, True]  # 0 < level <= 4, is menu
+game_state = [1, True]  # 0 < level <= 4, is draw menu
 game = [5, 0]  # health/points
 # lose when health reaches 0
 # win if points reach 5
@@ -426,16 +427,19 @@ while running:
 
         if (starting_x >= 700) and not is_move_canvas and not has_eval:
             is_similar = compare_images(screen_canvas.pixels.canvas, game_images)
-            game_images.append(screen_canvas.pixels.canvas.copy())
 
+            #added after the video
+            #simple idea, if all the pixels are the same color then don't add it to the list of picures because it can disrupt the originality check
+            if not np.allclose(screen_canvas.pixels.get_canvas_array(), screen_canvas.pixels.get_canvas_array()[0][0]): #if the first pixel is not the same as the rest of the image 
+                game_images.append(screen_canvas.pixels.canvas.copy())
             # is_pass = [None, False] # is the image as pass or fail, has checked for similarity
             if is_similar and not is_pass[1]:  # if they are similar subtract health
                 is_pass = [False, True]
-            elif not has_eval:  # else if they are not similar evaluate them with the CNN
+            elif not has_eval and not is_similar:  # else if they are not similar evaluate them with the CNN
                 eval = round(abs(CNN_judges.judge(map_judges[game_state[0]], screen_canvas.pixels.canvas)),
                              2)  # round, remove negative numbers
                 # abs is good enough as the negatives are very close to 0
-                print(eval)
+                print(f"The computer rates the image as:{eval}")
                 if eval < 0.75:  # if fail you lose 1 health, 0.75 is the passing grade
                     is_pass[0] = False
                 # if the 0.6 < eval <= 0.7, if a decent rating then no health is subtracted
@@ -450,8 +454,8 @@ while running:
                         game[0] += 1  # extra life
                     is_pass[0] = True
 
-                if not is_pass[0]:
-                    game[0] -= 1
+            if not is_pass[0]:
+                game[0] -= 1
 
                 has_eval = True
         if is_dialogue:
