@@ -27,7 +27,6 @@ class menu():
             self.level += 1
 
     def check_button(self):
-        # for event in pygame_event.copy():
         if pygame.mouse.get_pressed()[0]:
 
             mouse_x, mouse_y = pygame.mouse.get_pos()
@@ -52,7 +51,7 @@ class menu():
             pygame.draw.rect(surf, [255, 255, 255], (start_coord, (200, 100)))
 
         # getting input
-        chosen_level = self.check_button(pygame_event)
+        chosen_level = self.check_button()
         if chosen_level != None and chosen_level > self.level:  # check if the chosen level is not valid
             chosen_level = None
 
