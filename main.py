@@ -116,55 +116,55 @@ class canvas():
                     if keys[pygame.K_1]:
                         self.color = self.canvas_colors_1[2]
                         self.saturate = 0
-                        print("Red")
+                        # print("Red")
                     elif keys[pygame.K_2]:
                         self.color = self.canvas_colors_1[3]
                         self.saturate = 0
-                        print("Orange")
+                        # print("Orange")
                     elif keys[pygame.K_3]:
                         self.color = self.canvas_colors_1[4]
                         self.saturate = 0
-                        print("Yellow")
+                        # print("Yellow")
                     elif keys[pygame.K_4]:
                         self.color = self.canvas_colors_1[5]
                         self.saturate = 0
-                        print("Green")
+                        # print("Green")
                     elif keys[pygame.K_5]:
                         self.color = self.canvas_colors_1[6]
                         self.saturate = 0
-                        print("Dark Green")
+                        # print("Dark Green")
                     elif keys[pygame.K_6]:
                         self.color = self.canvas_colors_1[7]
                         self.saturate = 0
-                        print("Blue")
+                        # print("Blue")
                     elif keys[pygame.K_7]:
                         self.color = self.canvas_colors_1[8]
                         self.saturate = 0
-                        print("Cyan")
+                        # print("Cyan")
                     elif keys[pygame.K_8]:
                         self.color = self.canvas_colors_1[9]
                         self.saturate = 0
-                        print("Purple")
+                        # print("Purple")
                     elif keys[pygame.K_9]:
                         self.color = self.canvas_colors_1[10]
                         self.saturate = 0
-                        print("Pink")
+                        # print("Pink")
                     elif keys[pygame.K_BACKSPACE]:
                         self.color = self.canvas_colors_1[1]
                         self.saturate = 0
-                        print("White")
+                        # print("White")
                     elif keys[pygame.K_q]:
                         self.color = self.canvas_colors_2[0]
                         self.saturate = 0
-                        print("Black")
+                        # print("Black")
                     elif keys[pygame.K_w]:
                         self.color = self.canvas_colors_2[1]
                         self.saturate = 0
-                        print("Gray")
+                        # print("Gray")
                     elif keys[pygame.K_e]:
                         self.color = self.canvas_colors_2[2]
                         self.saturate = 0
-                        print("Brown")
+                        # print("Brown")
                     # flip and transpose
                     elif keys[pygame.K_LEFT]:
                         self.pixels.flip(2)
@@ -428,21 +428,20 @@ while running:
         if (starting_x >= 700) and not is_move_canvas and not has_eval:
             is_similar = compare_images(screen_canvas.pixels.canvas, game_images)
 
-            #added after the video
-            #simple idea, if all the pixels are the same color then don't add it to the list of picures because it can disrupt the originality check
-            if not np.allclose(screen_canvas.pixels.get_canvas_array(), screen_canvas.pixels.get_canvas_array()[0][0]): #if the first pixel is not the same as the rest of the image 
+            # added after the video simple idea if all the pixels are the same color then don't add it to the list of
+            # picures because it can disrupt the originality check
+            if not np.allclose(screen_canvas.pixels.get_canvas_array(), screen_canvas.pixels.get_canvas_array()[0][0]) and (screen_canvas.pixels.canvas.copy() not in game_images.copy()):
                 game_images.append(screen_canvas.pixels.canvas.copy())
             # is_pass = [None, False] # is the image as pass or fail, has checked for similarity
             if is_similar and not is_pass[1]:  # if they are similar subtract health
                 is_pass = [False, True]
             elif not has_eval and not is_similar:  # else if they are not similar evaluate them with the CNN
-                eval = round(abs(CNN_judges.judge(map_judges[game_state[0]], screen_canvas.pixels.canvas)),
-                             2)  # round, remove negative numbers
+                eval = CNN_judges.judge(map_judges[game_state[0]], screen_canvas.pixels.canvas)
+                # round, remove negative numbers
                 # abs is good enough as the negatives are very close to 0
-                print(f"The computer rates the image as:{eval}")
+                print(f"The computer rates the image as: {eval}")
                 if eval < 0.75:  # if fail you lose 1 health, 0.75 is the passing grade
                     is_pass[0] = False
-                # if the 0.6 < eval <= 0.7, if a decent rating then no health is subtracted
                 elif 0.75 < eval <= 1:  # CNN will never go past 1.1 but in case it does that means the human tricked
                     # the AI
                     game[1] += 1
@@ -453,15 +452,15 @@ while running:
                     if game[0] < 5:  # capped at 5 health
                         game[0] += 1  # extra life
                     is_pass[0] = True
+            has_eval = True
 
             if not is_pass[0]:
                 game[0] -= 1
 
-                has_eval = True
         if is_dialogue:
             # draw dialogue
             if is_pass[0]:
-                if has_chosen_dialogue is False:
+                if not has_chosen_dialogue:
                     positive_text = random.choice(positive_dialogue)
                     has_chosen_dialogue = True
                 screen.blit(positive_text, (1050, 300))
