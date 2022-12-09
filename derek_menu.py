@@ -27,6 +27,7 @@ class menu():
             self.level += 1
 
     def check_button(self):
+        # for event in pygame_event.copy():
         if pygame.mouse.get_pressed()[0]:
 
             mouse_x, mouse_y = pygame.mouse.get_pos()
