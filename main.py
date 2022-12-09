@@ -1,5 +1,5 @@
 # ALL WRITTEN BY BRIAN WU
-# 2022-12-05
+# 2022-12-02
 # finished -
 
 # main canvas imports
@@ -19,7 +19,7 @@ from andrew_background import create_background
 # import numpy as np
 
 from CNN import AI_Judges
-from image_compare import compare_images
+from image_compare import compare_images, check_image_copy
 
 # for text color and or frame
 BLACK = [0, 0, 0]
@@ -63,14 +63,23 @@ class canvas():
                                 [255, 255, 255], [255, 255, 255], [255, 255, 255], [255, 255, 255], [255, 255, 255],
                                 [255, 255, 255]]  # White are empty colors in case customization is added
 
+        self.redo_cache = np.array([])
+
+    def reset_redo_cache(self):
+        self.redo_cache = np.array([])
+
     def reset_canvas(self):
         self.pixels.reset()
 
     def draw_canvas(self, pygame_event, input_starting_coord, input_pixel_size, is_palette, is_draw):
+        global undo_cache
+        global redo_cache
+
         self.is_palette = is_palette
         self.pixel_size = input_pixel_size
         self.starting_coord = input_starting_coord
         self.pygame_event = pygame_event.copy()
+
         for event in self.pygame_event:
             self.coord = self.get_canvas_coord.find_coord(
                 pygame.mouse.get_pos())  # cursor coord -> canvas coord, make sure to copy it
@@ -86,6 +95,7 @@ class canvas():
                     elif pygame.mouse.get_pressed()[0]:
                         self.pixels.fill_color(self.color)
                     elif pygame.mouse.get_pressed()[2]:
+                        self.pixels.fill_color([255, 255, 255])  # reset canvas by setting all pixels to white
                         self.pixels.fill_color([255, 255, 255])  # reset canvas by setting all pixels to white
 
                 if event.type == pygame.MOUSEBUTTONDOWN:
@@ -170,9 +180,24 @@ class canvas():
                         self.pixels.flip(2)
                     elif keys[pygame.K_RIGHT]:
                         self.pixels.flip(1)
-                    elif keys[pygame.K_t] and keys[pygame.K_LCTRL]:
+                    elif (keys[pygame.K_LCTRL] or keys[pygame.K_RCTRL]) and keys[pygame.K_t]:
                         # BEST FEATURE I HAVE ADDED
                         self.pixels.transpose()
+
+        keys = pygame.key.get_pressed()
+        if is_draw:
+            if (keys[pygame.K_LCTRL] or keys[pygame.K_RCTRL]) and (
+                    keys[pygame.K_LSHIFT] or keys[pygame.K_RSHIFT]) and keys[pygame.K_z]:
+                if len(redo_cache) != 0:
+                    cache = redo_cache.pop(-1)
+                    undo_cache.append(cache)
+                    self.pixels.canvas = cache.tolist()
+            elif (keys[pygame.K_LCTRL] or keys[pygame.K_RCTRL]) and keys[pygame.K_z] and self.pixels.canvas != [[[255, 255, 255] for _ in range(self.canvas_size)] for __ in range(self.canvas_size)]:
+                cache = undo_cache.pop(-1)
+                redo_cache.append(cache)
+                if len(undo_cache) != 0:
+                    self.pixels.canvas = undo_cache[-1].tolist()
+
 
         starting_x, starting_y = self.starting_coord
         screen.blit(self.canvas_frame, (starting_x - 25, starting_y - 25))
@@ -220,11 +245,10 @@ pygame.mixer.init()
 music_file_list = glob("music/*.mp3")
 
 
-
 def load_music():
     choice = random.choice(music_file_list)
     pygame.mixer.music.load(choice)
-    mixer.music.set_volume(.3)
+    mixer.music.set_volume(.5)
 
 
 def unload_music():
@@ -240,6 +264,9 @@ pygame.display.set_caption('Christmas Chadward')
 canvas_size = 13
 pixel_size = 40
 starting_coord = [300, 355]
+
+pygame.mouse.set_visible(False)  # turn cursor into invisible
+cursor = pygame.image.load("sprites/cursor.png").convert_alpha()
 
 screen_menu = menu()
 
@@ -322,6 +349,12 @@ def draw_character(level, input_coord):
 
 snow = gen_snow()
 
+undo_steps = 0  # skips the amount of undo updates
+undo_cache = []  # empty list
+# undo_cache.append(screen_canvas.pixels.get_canvas_array())
+
+redo_cache = []
+
 # keep track of game states, and other variables
 game_state = [1, True]  # 0 < level <= 4, is draw menu
 game = [5, 0]  # health/points
@@ -337,13 +370,16 @@ has_pressed_enter = 0  # False, 1 True 2 = pressed 2 times
 
 has_eval = False  # 0 = False, 1 = True, if the NN has evaluated the image
 is_pass = [None, False]  # pass or fail, has checked for similarity
-
 is_dialogue, has_chosen_dialogue = False, False
 
 running = True
 while running:
+    change = check_image_copy(screen_canvas.pixels.get_canvas_array(), undo_cache)
+    if change:
+        undo_cache.append(screen_canvas.pixels.get_canvas_array())
+        if not screen_canvas.pixels.get_canvas_array().all():
+            redo_cache = []
 
-    # play music if there is no music
     if not pygame.mixer.music.get_busy():
         unload_music()
         load_music()
@@ -356,7 +392,9 @@ while running:
         if chosen_level is not None:
             game_state = [chosen_level, False]  # chosen a level, thus no longer in menu
 
+        conveyors = update_conveyors(game_state[0])
         screen.blit(menu_surf, (0, 0))
+        screen.blit(snow.draw_snow(), (0, 0))
         # draw and get returned value and set is menu false
     else:
         # draw background
@@ -408,7 +446,6 @@ while running:
                     is_pass = [None, False]  # reset to no pass/fail, and has not checked for similarity
 
                     # update conveyor speed
-                    conveyors = update_conveyors(game_state[0])
 
                     # update the evaluation state
                     has_eval = False
@@ -430,10 +467,13 @@ while running:
 
             # added after the video simple idea if all the pixels are the same color then don't add it to the list of
             # picures because it can disrupt the originality check
-            if not np.allclose(screen_canvas.pixels.get_canvas_array(), screen_canvas.pixels.get_canvas_array()[0][0]) and (screen_canvas.pixels.canvas.copy() not in game_images.copy()):
+            if not np.allclose(screen_canvas.pixels.get_canvas_array(),
+                               screen_canvas.pixels.get_canvas_array()[0][0]) and (
+                    screen_canvas.pixels.canvas.copy() not in game_images.copy()):
                 game_images.append(screen_canvas.pixels.canvas.copy())
             # is_pass = [None, False] # is the image as pass or fail, has checked for similarity
             if is_similar and not is_pass[1]:  # if they are similar subtract health
+                print("IMAGE TOO SIMILAR")
                 is_pass = [False, True]
             elif not has_eval and not is_similar:  # else if they are not similar evaluate them with the CNN
                 eval = CNN_judges.judge(map_judges[game_state[0]], screen_canvas.pixels.canvas)
@@ -473,6 +513,9 @@ while running:
         draw_health((730, 100), game[0])
         draw_points((1350, 110), game[1])
         screen.blit(snow.draw_snow(), (0, 0))
+
+    cursor_x, cursor_y = pygame.mouse.get_pos()
+    screen.blit(cursor, (cursor_x - 20, cursor_y - 20))
 
     pygame.display.flip()
     for event in pygame_event:
