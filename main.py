@@ -184,6 +184,7 @@ class canvas():
                         # BEST FEATURE I HAVE ADDED
                         self.pixels.transpose()
 
+        # UNDO/ REDO feature
         keys = pygame.key.get_pressed()
         if is_draw:
             if (keys[pygame.K_LCTRL] or keys[pygame.K_RCTRL]) and (
@@ -192,12 +193,12 @@ class canvas():
                     cache = redo_cache.pop(-1)
                     undo_cache.append(cache)
                     self.pixels.canvas = cache.tolist()
-            elif (keys[pygame.K_LCTRL] or keys[pygame.K_RCTRL]) and keys[pygame.K_z] and self.pixels.canvas != [[[255, 255, 255] for _ in range(self.canvas_size)] for __ in range(self.canvas_size)]:
+            elif (keys[pygame.K_LCTRL] or keys[pygame.K_RCTRL]) and keys[pygame.K_z] and self.pixels.canvas != [
+                [[255, 255, 255] for _ in range(self.canvas_size)] for __ in range(self.canvas_size)]:
                 cache = undo_cache.pop(-1)
                 redo_cache.append(cache)
                 if len(undo_cache) != 0:
                     self.pixels.canvas = undo_cache[-1].tolist()
-
 
         starting_x, starting_y = self.starting_coord
         screen.blit(self.canvas_frame, (starting_x - 25, starting_y - 25))
@@ -426,6 +427,10 @@ while running:
                     is_draw = False
                     # run tensorflow here
                 elif has_pressed_enter == 2 and is_show_palette == 2:
+                    # reset the undo and redo caches
+                    undo_cache = []
+                    redo_cache = []
+
                     has_pressed_enter = 0
                     # check if we should reset the menu
                     if game[1] >= 5:
@@ -436,7 +441,7 @@ while running:
                         game = [5, 0]  # reset the health and points
                         game_state[1] = True
 
-                    # reset everything, absolutly everything
+                    # reset everything, absolutely everything
                     is_show_palette = 1
                     is_draw = True
                     starting_coord = [300, 355]
